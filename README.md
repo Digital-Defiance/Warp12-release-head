@@ -14,7 +14,7 @@ Passwords are injected via **environment variables** on the PTY child — not co
 | iOS .p12 | `APPLE_IOS_CERTIFICATE_PASSWORD` |
 | Android | `ANDROID_KEYSTORE_PASSWORD` |
 
-Before each build, the app captures your **login-shell environment** (`bsh -il`) and merges GUI overrides on top. Check the terminal for `notary env: APPLE_ID=set, APPLE_TEAM_ID=…, APPLE_PASSWORD=set` before the build starts.
+Before each build, the app captures your **login-shell environment** (`bsh -il` / `zsh -il`), sources the repo-root `.env` (via `WARP12_REPO_ROOT`), and merges GUI password overrides on top. Org identity (`APPLE_TEAM_ID`, `APPLE_BUNDLE_ID`, `GITHUB_REPO`, …) should live in `.env` — see the monorepo `.env.example`. Check the terminal for `notary env: APPLE_ID=set, APPLE_TEAM_ID=…` before the build starts.
 
 Also sets `NONINTERACTIVE=1` so macOS publish **does not** prompt for git tag / homebrew-tap push.
 

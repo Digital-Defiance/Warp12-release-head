@@ -10,15 +10,30 @@ enum ShellEnvironment {
     export PATH="$HOME/.cargo/bin:$PATH"; \
     export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"; \
     export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"; \
+    if [ -n "${WARP12_REPO_ROOT:-}" ] && [ -f "${WARP12_REPO_ROOT}/.env" ]; then \
+      set -a; \
+      . "${WARP12_REPO_ROOT}/.env"; \
+      set +a; \
+    fi; \
+    if [ -n "${WARP12_REPO_ROOT:-}" ] && [ -f "${WARP12_REPO_ROOT}/apps/Warp12/.env" ]; then \
+      set -a; \
+      . "${WARP12_REPO_ROOT}/apps/Warp12/.env"; \
+      set +a; \
+    fi; \
     [[ -n "${WARP12_GUI_APPLE_PASSWORD:-}" ]] && export APPLE_PASSWORD="$WARP12_GUI_APPLE_PASSWORD"; \
     [[ -n "${WARP12_GUI_APPLE_IOS_PASSWORD:-}" ]] && export APPLE_IOS_CERTIFICATE_PASSWORD="$WARP12_GUI_APPLE_IOS_PASSWORD"; \
     [[ -n "${WARP12_GUI_ANDROID_PASSWORD:-}" ]] && export ANDROID_KEYSTORE_PASSWORD="$WARP12_GUI_ANDROID_PASSWORD"; \
     export APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_SIGNING_IDENTITY \
       APPLE_IOS_CERTIFICATE_PASSWORD ANDROID_KEYSTORE_PASSWORD \
-      APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_PATH 2>/dev/null || true; \
+      APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_PATH \
+      APPLE_BUNDLE_ID APPLE_PUBLISHER_NAME GITHUB_REPO HOMEBREW_TAP_DIR \
+      FIREBASE_PROJECT 2>/dev/null || true; \
     if [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ]; then \
       if [ -z "${APPLE_API_KEY_PATH:-}" ] && [ -f "$HOME/private_keys/AuthKey_${APPLE_API_KEY}.p8" ]; then \
         export APPLE_API_KEY_PATH="$HOME/private_keys/AuthKey_${APPLE_API_KEY}.p8"; \
+      fi; \
+      if [ -z "${APPLE_API_KEY_PATH:-}" ] && [ -n "${APPLE_API_KEY_DIR:-}" ] && [ -f "${APPLE_API_KEY_DIR}/AuthKey_${APPLE_API_KEY}.p8" ]; then \
+        export APPLE_API_KEY_PATH="${APPLE_API_KEY_DIR}/AuthKey_${APPLE_API_KEY}.p8"; \
       fi; \
       if [ -n "${APPLE_API_KEY_PATH:-}" ] && [ -f "${APPLE_API_KEY_PATH}" ]; then \
         unset APPLE_PASSWORD; \
@@ -69,7 +84,8 @@ enum ShellEnvironment {
   static func ptyEnvironment(
     createGitTag: Bool,
     pushHomebrewTap: Bool,
-    secrets: BuildSecrets
+    secrets: BuildSecrets,
+    repoRoot: String = ""
   ) -> [String: String] {
     var env: [String: String] = [:]
     let borrowKeys = ["HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TMPDIR"]
@@ -89,6 +105,11 @@ enum ShellEnvironment {
     ensureToolPaths(&env)
     env["NONINTERACTIVE"] = "1"
     env["WARP12_GUI_BUILD"] = "1"
+    let trimmedRoot = repoRoot.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !trimmedRoot.isEmpty {
+      env["WARP12_REPO_ROOT"] = trimmedRoot
+      env["WARP12_ROOT"] = trimmedRoot
+    }
     if !createGitTag {
       env["WARP12_CREATE_GIT_TAG"] = "0"
     }

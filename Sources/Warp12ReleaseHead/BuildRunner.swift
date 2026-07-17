@@ -134,7 +134,8 @@ final class BuildRunner: ObservableObject {
         let env = ShellEnvironment.ptyEnvironment(
             createGitTag: createGitTag,
             pushHomebrewTap: pushHomebrewTap,
-            secrets: secrets
+            secrets: secrets,
+            repoRoot: root
         )
         let launch = BuildLaunch(
             shellPath: shellPath,
