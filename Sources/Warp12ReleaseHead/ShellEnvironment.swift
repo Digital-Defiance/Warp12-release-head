@@ -226,8 +226,53 @@ enum ShellEnvironment {
     return FileManager.default.isExecutableFile(atPath: path)
   }
 
-  private static func shellQuote(_ value: String) -> String {
+  /// Quote a path/arg for embedding in a login-shell `-c` string.
+  static func shellQuote(_ value: String) -> String {
     "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+  }
+
+  /// Run a short command under `shell -il` so PATH matches Terminal (nvm, brew).
+  /// Used by version detection when the GUI app itself has Finder's tiny PATH.
+  static func runLoginShellCommand(
+    shellPath: String,
+    workingDirectory: String,
+    command: String
+  ) -> String {
+    let process = Process()
+    let stdout = Pipe()
+    let stderr = Pipe()
+    process.executableURL = URL(fileURLWithPath: shellPath)
+    process.arguments = ["-il", "-c", command]
+    process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
+    process.standardOutput = stdout
+    process.standardError = stderr
+    process.standardInput = FileHandle.nullDevice
+
+    var env = ProcessInfo.processInfo.environment
+    if env["HOME"] == nil {
+      env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
+    }
+    if env["USER"] == nil {
+      env["USER"] = NSUserName()
+    }
+    if env["LANG"] == nil {
+      env["LANG"] = "en_US.UTF-8"
+    }
+    process.environment = env
+
+    do {
+      try process.run()
+      process.waitUntilExit()
+      let data = stdout.fileHandleForReading.readDataToEndOfFile()
+      let text = (String(data: data, encoding: .utf8) ?? "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      if process.terminationStatus == 0, !text.isEmpty {
+        return text
+      }
+      return ""
+    } catch {
+      return ""
+    }
   }
 }
 

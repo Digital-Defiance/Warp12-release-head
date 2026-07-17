@@ -15,9 +15,33 @@ struct ContentView: View {
     @State private var accountUserShell = ""
 
     private var releaseTagPreview: String {
-        let version = runner.detectedVersion
+        let version = previewReleaseVersion
         guard !version.isEmpty else { return "v?" }
         return version.hasPrefix("v") ? version : "v\(version)"
+    }
+
+    /// Same precedence as build-all: bump flags, then explicit, else current.
+    private var previewReleaseVersion: String {
+        let current = runner.detectedVersion
+        if nextMinor || nextBuild {
+            return Self.bumpedVersion(from: current, nextMinor: nextMinor, nextBuild: nextBuild)
+        }
+        let explicit = explicitVersion.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !explicit.isEmpty { return explicit }
+        return current
+    }
+
+    private static func bumpedVersion(from current: String, nextMinor: Bool, nextBuild: Bool) -> String {
+        let parts = current.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 3 else { return "" }
+        var major = parts[0], minor = parts[1], build = parts[2]
+        if nextMinor {
+            minor += 1
+            build = 0
+        } else if nextBuild {
+            build += 1
+        }
+        return "\(major).\(minor).\(build)"
     }
 
     var body: some View {
@@ -61,6 +85,10 @@ struct ContentView: View {
                     }
                     if !runner.detectedVersion.isEmpty {
                         Text("Current: v\(runner.detectedVersion)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if !runner.repoRoot.isEmpty {
+                        Text("Current: (could not detect — need node on login-shell PATH)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

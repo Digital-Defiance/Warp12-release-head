@@ -39,11 +39,20 @@ swift build -c release
 swift run -c release
 ```
 
-**Password fields typing into Terminal?** Click the app window once so it is frontmost. Or launch detached:
+**Password fields typing into Terminal?** Click the app window once so it is frontmost. Or:
 
 ```bash
+# Detached binary (no .app)
 ./run-detached.sh
+# or: yarn release:detached
+
+# Double-clickable .app (recommended)
+./build-app.sh
+# or: yarn release:app
+#     ./build-app.sh --open   # build and launch
 ```
+
+`build-app.sh` writes `Warp 12 Release.app` in this directory.
 
 ## Submodule setup
 
@@ -59,6 +68,7 @@ Until then, this folder can live vendored in the monorepo as-is.
 ## Notes
 
 - **bsh** is zsh-compatible (date formatting differs only). Use **Detect** to read macOS `UserShell`.
+- **Version detect** runs `scripts/app-version.mjs print` under your **login shell** (`-il`), not the GUI process PATH. Finder-launched `.app` bundles only get `/usr/bin:/bin`, so plain `env node` fails when Node lives in nvm/Homebrew — Refresh version / Current label need the login shell.
 - Leave password fields empty to use shell exports; fill them only to override.
 - Signing identities / API keys still come from your profile or Keychain — the GUI only covers interactive **password** prompts.
 - Child `ps` may still list env keys for your user; avoid shared-screen debugging while a build runs.

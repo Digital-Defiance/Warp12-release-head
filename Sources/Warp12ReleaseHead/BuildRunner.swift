@@ -39,27 +39,39 @@ final class BuildRunner: ObservableObject {
         }
 
         let root = repoRoot
-        let version: String = await Task.detached(priority: .userInitiated) {
-            let process = Process()
-            let pipe = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["node", script.path, "print"]
-            process.currentDirectoryURL = URL(fileURLWithPath: root)
-            process.standardOutput = pipe
-            process.standardError = Pipe()
-            process.standardInput = FileHandle.nullDevice
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                return (String(data: data, encoding: .utf8) ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            } catch {
-                return ""
-            }
+        let shell = loginShellPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? ShellEnvironment.detectLoginShell()
+            : loginShellPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let raw: String = await Task.detached(priority: .userInitiated) {
+            ShellEnvironment.runLoginShellCommand(
+                shellPath: shell,
+                workingDirectory: root,
+                // Finder/.app launches have a tiny PATH — load login rc first so
+                // nvm / Homebrew node resolve the same as Terminal and builds.
+                command: "node \(ShellEnvironment.shellQuote(script.path)) print"
+            )
         }.value
 
-        detectedVersion = version
+        detectedVersion = Self.parsePrintedVersion(raw)
+    }
+
+    /// Prefer the last `0.minor.build` line (login shells can emit banner noise).
+    static func parsePrintedVersion(_ raw: String) -> String {
+        let lines = raw
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if let match = lines.last(where: Self.isWarpVersion) {
+            return match
+        }
+        return lines.last ?? ""
+    }
+
+    private static func isWarpVersion(_ value: String) -> Bool {
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0] == "0" else { return false }
+        return parts[1].allSatisfy(\.isNumber) && parts[2].allSatisfy(\.isNumber)
     }
 
     func cancel() {
